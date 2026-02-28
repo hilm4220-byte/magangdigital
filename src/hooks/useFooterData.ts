@@ -12,6 +12,7 @@ interface FooterData {
   whatsapp_message_hero: string;
   whatsapp_message_cta: string;
   whatsapp_message_footer: string;
+  hero_program_title: string;
 }
 
 export const useFooterData = () => {
@@ -163,6 +164,10 @@ export const useFooterData = () => {
     return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
   };
 
+  const getHeroProgramTitle = () => {
+    return footerData?.hero_program_title || "Program Magang & PKL 2025";
+  };
+
   return {
     footerData,
     loading,
@@ -172,6 +177,7 @@ export const useFooterData = () => {
     getHeroWhatsAppLink,
     getCTAWhatsAppLink,
     getFooterWhatsAppLink,
+    getHeroProgramTitle,
     phone: footerData?.phone || "+6281234567890",
   };
 };

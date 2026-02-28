@@ -3,7 +3,7 @@ import { ArrowRight, MessageCircle, Sparkles, TrendingUp, Users } from "lucide-r
 import { useFooterData } from "@/hooks/useFooterData";
 
 const HeroSection = () => {
-  const { getHeroWhatsAppLink } = useFooterData();
+  const { getHeroWhatsAppLink, getHeroProgramTitle } = useFooterData();
 
   const scrollToForm = () => {
     document.getElementById('cta-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -42,7 +42,7 @@ const HeroSection = () => {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 rounded-full px-4 py-2 mb-8">
             <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-            <span className="text-primary-foreground text-sm font-medium">Program Magang & PKL 2025</span>
+            <span className="text-primary-foreground text-sm font-medium">{getHeroProgramTitle()}</span>
           </div>
 
           {/* Main headline */}

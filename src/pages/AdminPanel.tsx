@@ -19,6 +19,7 @@ interface FooterData {
   whatsapp_message_hero: string;
   whatsapp_message_cta: string;
   whatsapp_message_footer: string;
+  hero_program_title: string;
   updated_at: string;
 }
 
@@ -39,14 +40,34 @@ export function AdminPage() {
     whatsapp_message_hero: "",
     whatsapp_message_cta: "",
     whatsapp_message_footer: "",
+    hero_program_title: "",
   });
 
   // Check authentication
   useEffect(() => {
-    const adminSession = sessionStorage.getItem("adminSession");
-    if (!adminSession) {
-      navigate("/login");
-    }
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        navigate("/login");
+        return;
+      }
+    };
+
+    checkAuth();
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session?.user) {
+          navigate("/login");
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, [navigate]);
 
   // Fetch footer data
@@ -76,6 +97,7 @@ export function AdminPage() {
             whatsapp_message_hero: footerData.whatsapp_message_hero || "",
             whatsapp_message_cta: footerData.whatsapp_message_cta || "",
             whatsapp_message_footer: footerData.whatsapp_message_footer || "",
+            hero_program_title: footerData.hero_program_title || "",
           });
         } else {
           // Initialize with empty data if not exists
@@ -89,6 +111,7 @@ export function AdminPage() {
             whatsapp_message_hero: "",
             whatsapp_message_cta: "",
             whatsapp_message_footer: "",
+            hero_program_title: "",
           });
         }
       } catch (err: unknown) {
@@ -171,10 +194,14 @@ export function AdminPage() {
     }
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("adminSession");
-    sessionStorage.removeItem("loginTime");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout error:", err);
+      navigate("/login");
+    }
   };
 
   if (loading) {
@@ -331,6 +358,27 @@ export function AdminPage() {
                 </div>
               </div>
 
+              {/* Hero Section */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-slate-900">Hero Section</h3>
+
+                <div className="space-y-2">
+                  <label htmlFor="hero_program_title" className="text-sm font-medium">
+                    Judul Program
+                  </label>
+                  <Input
+                    id="hero_program_title"
+                    name="hero_program_title"
+                    placeholder="Program Magang & PKL 2025"
+                    value={formData.hero_program_title}
+                    onChange={handleChange}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Teks yang ditampilkan di badge hero section
+                  </p>
+                </div>
+              </div>
+
               {/* WhatsApp Messages Section */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg text-slate-900">Pesan WhatsApp Otomatis</h3>
@@ -418,6 +466,7 @@ export function AdminPage() {
                         whatsapp_message_hero: data.whatsapp_message_hero || "",
                         whatsapp_message_cta: data.whatsapp_message_cta || "",
                         whatsapp_message_footer: data.whatsapp_message_footer || "",
+                        hero_program_title: data.hero_program_title || "",
                       });
                     }
                   }}
@@ -435,7 +484,8 @@ export function AdminPage() {
                 <li>• Semua perubahan akan langsung ditampilkan di footer website</li>
                 <li>• Nomor WhatsApp akan otomatis tersinkronisasi di semua link WhatsApp</li>
                 <li>• Data disimpan di Supabase database</li>
-                <li>• Session akan hilang jika browser ditutup</li>
+                <li>• Session dikelola oleh Supabase Authentication</li>
+                <li>• Gunakan tombol Logout untuk keluar dengan aman</li>
               </ul>
             </div>
           </CardContent>
