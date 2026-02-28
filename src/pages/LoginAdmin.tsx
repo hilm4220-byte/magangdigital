@@ -92,7 +92,7 @@ export function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@digimagang.id"
+                placeholder="Masukan email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
@@ -130,13 +130,6 @@ export function LoginPage() {
               )}
             </Button>
           </form>
-
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-            <p className="font-medium mb-1">Info Login:</p>
-            <p className="text-xs">• Menggunakan Supabase Authentication</p>
-            <p className="text-xs">• Email: Email yang terdaftar di Supabase</p>
-            <p className="text-xs">• Password: Password Supabase Anda</p>
-          </div>
         </CardContent>
       </Card>
     </div>
