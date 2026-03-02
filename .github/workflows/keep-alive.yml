@@ -1,0 +1,28 @@
+name: Supabase Keep Alive
+
+# Trigger setiap hari pukul 9 pagi UTC (berapa jam untuk timezone Anda)
+on:
+  schedule:
+    # Cron: Minute Hour Day Month DayOfWeek
+    # 0 9 * * * = setiap hari jam 9:00 UTC
+    - cron: '0 9 * * *'
+  
+  # Boleh juga trigger manual dari Actions tab
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Keep Supabase Active
+        run: |
+          curl -X GET \
+            "https://kmbaxzaxxzvskhbojfse.supabase.co/rest/v1/footer_settings?select=*&limit=1" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}"
+        env:
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      
+      - name: Log Success
+        run: echo "✅ Supabase Keep Alive - Database tetap aktif"
