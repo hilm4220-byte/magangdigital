@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Instagram, Mail, MessageCircle, Phone, AlertCircle, Facebook, Twitter, Link } from "lucide-react";
+import { Instagram, Mail, MessageCircle, Phone, AlertCircle, Facebook, Twitter, Link, Copy, Check } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -32,6 +32,7 @@ const FooterSection = () => {
   const [isConnected, setIsConnected] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -243,6 +244,26 @@ const FooterSection = () => {
     return `mailto:${email}`;
   };
 
+  // Handle email click - copy to clipboard for desktop users
+  const handleEmailClick = async (email: string) => {
+    // Get clean email (without mailto: prefix)
+    const cleanEmail = email.startsWith("mailto:") ? email.replace("mailto:", "") : email;
+    
+    try {
+      // Try to copy to clipboard
+      await navigator.clipboard.writeText(cleanEmail);
+      setCopiedEmail(true);
+      
+      // Show "copied" feedback for 2 seconds
+      setTimeout(() => {
+        setCopiedEmail(false);
+      }, 2000);
+    } catch (err) {
+      // If clipboard fails, show error
+      console.log("Clipboard copy failed:", err);
+    }
+  };
+
   // Get email from social links or footer data
   const getEmailLink = () => {
     const emailLink = socialLinks.find((link) => link.icon_type === "email");
@@ -317,7 +338,7 @@ const FooterSection = () => {
             <div className="flex gap-4">
               {socialLinks.length > 0 ? (
                 socialLinks.map((link) => {
-                  // Handle email link specially
+                  // Handle email link - open mailto
                   if (link.icon_type === "email") {
                     return (
                       <a
@@ -369,7 +390,7 @@ const FooterSection = () => {
                     href={getEmailLink()}
                     className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
                     aria-label="Email"
-                    title="Email"
+                    title="Kirim email"
                   >
                     <Mail className="w-5 h-5" />
                   </a>
@@ -384,17 +405,17 @@ const FooterSection = () => {
             <div className="space-y-3">
               {socialLinks.length > 0 ? (
                 socialLinks.map((link) => {
-                  // Find and display email
+                  // Find and display email - open mailto
                   if (link.icon_type === "email") {
                     return (
-                      <a 
+                      <a
                         key={link.id}
-                        href={formatEmailLink(link.url)} 
+                        href={formatEmailLink(link.url)}
                         className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
                         title="Klik untuk kirim email"
                       >
                         <Mail className="w-5 h-5" />
-                        <span>{link.url.replace('mailto:', '')}</span>
+                        <span>{link.url.startsWith('mailto:') ? link.url.replace('mailto:', '') : link.url}</span>
                       </a>
                     );
                   }
