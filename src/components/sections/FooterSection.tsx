@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Instagram, Mail, MessageCircle, Phone, AlertCircle } from "lucide-react";
+import { Instagram, Mail, MessageCircle, Phone, AlertCircle, Facebook, Twitter, Link } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -13,9 +13,22 @@ interface FooterData {
   whatsapp_message_footer: string;
 }
 
+interface SocialLink {
+  id: number;
+  type: string;
+  name: string;
+  url: string;
+  icon_type: string;
+  label: string;
+  display_order: number;
+  is_active: boolean;
+}
+
 const FooterSection = () => {
   const currentYear = new Date().getFullYear();
   const [footerData, setFooterData] = useState<FooterData | null>(null);
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [quickLinks, setQuickLinks] = useState<SocialLink[]>([]);
   const [isConnected, setIsConnected] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -32,6 +45,7 @@ const FooterSection = () => {
           return;
         }
 
+        // Fetch footer settings
         const { data, error } = await supabase
           .from("footer_settings")
           .select("*")
@@ -49,6 +63,34 @@ const FooterSection = () => {
           setFooterData(data as FooterData);
           setHasError(false);
         }
+
+        // Fetch social links
+        const { data: socialLinksData, error: socialError } = await supabase
+          .from("social_links")
+          .select("*")
+          .eq("type", "social")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true });
+
+        if (socialError) {
+          console.error("Error fetching social links:", socialError);
+        } else if (socialLinksData && isMounted) {
+          setSocialLinks(socialLinksData as SocialLink[]);
+        }
+
+        // Fetch quick links
+        const { data: quickLinksData, error: quickError } = await supabase
+          .from("social_links")
+          .select("*")
+          .eq("type", "quick_link")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true });
+
+        if (quickError) {
+          console.error("Error fetching quick links:", quickError);
+        } else if (quickLinksData && isMounted) {
+          setQuickLinks(quickLinksData as SocialLink[]);
+        }
       } catch (err) {
         console.error("Error:", err);
         setErrorMessage("Terjadi kesalahan saat memuat data footer.");
@@ -60,6 +102,7 @@ const FooterSection = () => {
 
     // Subscribe to real-time changes with retry logic
     let subscription: RealtimeChannel | null = null;
+    let socialSubscription: RealtimeChannel | null = null;
     
     const setupSubscription = async () => {
       try {
@@ -68,6 +111,7 @@ const FooterSection = () => {
           return;
         }
 
+        // Footer settings subscription
         subscription = supabase
           .channel("footer_settings_channel")
           .on(
@@ -94,6 +138,47 @@ const FooterSection = () => {
             }
           })
           .subscribe();
+
+        // Social links subscription
+        socialSubscription = supabase
+          .channel("social_links_channel")
+          .on(
+            "postgres_changes",
+            { 
+              event: "*", 
+              schema: "public", 
+              table: "social_links" 
+            },
+            async (payload) => {
+              if (isMounted) {
+                console.log("Social links updated from database:", payload);
+                // Refetch social links
+                const { data: updatedSocialLinks } = await supabase
+                  .from("social_links")
+                  .select("*")
+                  .eq("type", "social")
+                  .eq("is_active", true)
+                  .order("display_order", { ascending: true });
+
+                if (updatedSocialLinks) {
+                  setSocialLinks(updatedSocialLinks as SocialLink[]);
+                }
+
+                // Refetch quick links
+                const { data: updatedQuickLinks } = await supabase
+                  .from("social_links")
+                  .select("*")
+                  .eq("type", "quick_link")
+                  .eq("is_active", true)
+                  .order("display_order", { ascending: true });
+
+                if (updatedQuickLinks) {
+                  setQuickLinks(updatedQuickLinks as SocialLink[]);
+                }
+              }
+            }
+          )
+          .subscribe();
       } catch (err) {
         console.error("Subscription setup error:", err);
         // Don't set error state for subscription issues
@@ -107,8 +192,29 @@ const FooterSection = () => {
       if (subscription) {
         supabase.removeChannel(subscription);
       }
+      if (socialSubscription) {
+        supabase.removeChannel(socialSubscription);
+      }
     };
   }, []);
+
+  // Function to get icon component based on icon_type
+  const getIconComponent = (iconType: string) => {
+    switch (iconType) {
+      case "instagram":
+        return <Instagram className="w-5 h-5" />;
+      case "facebook":
+        return <Facebook className="w-5 h-5" />;
+      case "twitter":
+        return <Twitter className="w-5 h-5" />;
+      case "whatsapp":
+        return <MessageCircle className="w-5 h-5" />;
+      case "email":
+        return <Mail className="w-5 h-5" />;
+      default:
+        return <Link className="w-5 h-5" />;
+    }
+  };
 
   // Format phone number for WhatsApp - Robust formatting
   const formatWhatsAppNumber = (phone: string) => {
@@ -125,6 +231,25 @@ const FooterSection = () => {
     }
     // Otherwise add 62
     return "62" + cleanedPhone;
+  };
+
+  // Format email URL for mailto
+  const formatEmailLink = (email: string) => {
+    if (!email) return "";
+    // Check if already has mailto:
+    if (email.startsWith("mailto:")) {
+      return email;
+    }
+    return `mailto:${email}`;
+  };
+
+  // Get email from social links or footer data
+  const getEmailLink = () => {
+    const emailLink = socialLinks.find((link) => link.icon_type === "email");
+    if (emailLink) {
+      return formatEmailLink(emailLink.url);
+    }
+    return formatEmailLink(memoizedData.email);
   };
 
   // Memoize default values and formatted data for performance
@@ -190,31 +315,66 @@ const FooterSection = () => {
               Belajar skill, dapat penghasilan!
             </p>
             <div className="flex gap-4">
-              <a 
-                href={memoizedData.instagram} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a 
-                href={memoizedData.whatsappLink} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
-                aria-label="WhatsApp"
-              >
-                <MessageCircle className="w-5 h-5" />
-              </a>
-              <a 
-                href={`mailto:${memoizedData.email}`} 
-                className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
-                aria-label="Email"
-              >
-                <Mail className="w-5 h-5" />
-              </a>
+              {socialLinks.length > 0 ? (
+                socialLinks.map((link) => {
+                  // Handle email link specially
+                  if (link.icon_type === "email") {
+                    return (
+                      <a
+                        key={link.id}
+                        href={formatEmailLink(link.url)}
+                        className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                        aria-label={link.label}
+                        title={link.label}
+                      >
+                        {getIconComponent(link.icon_type)}
+                      </a>
+                    );
+                  }
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                      aria-label={link.label}
+                      title={link.label}
+                    >
+                      {getIconComponent(link.icon_type)}
+                    </a>
+                  );
+                })
+              ) : (
+                <>
+                  <a 
+                    href={memoizedData.instagram} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                    aria-label="Instagram"
+                  >
+                    <Instagram className="w-5 h-5" />
+                  </a>
+                  <a 
+                    href={memoizedData.whatsappLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                    aria-label="WhatsApp"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                  </a>
+                  <a 
+                    href={getEmailLink()}
+                    className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                    aria-label="Email"
+                    title="Email"
+                  >
+                    <Mail className="w-5 h-5" />
+                  </a>
+                </>
+              )}
             </div>
           </div>
 
@@ -222,29 +382,88 @@ const FooterSection = () => {
           <div>
             <h4 className="font-bold text-lg mb-4">Hubungi Kami</h4>
             <div className="space-y-3">
-              <a 
-                href={memoizedData.whatsappLink} 
-                className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Phone className="w-5 h-5" />
-                <span>{memoizedData.phone}</span>
-              </a>
-              <a 
-                href={`mailto:${memoizedData.email}`} 
-                className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Mail className="w-5 h-5" />
-                <span>{memoizedData.email}</span>
-              </a>
-              <a 
-                href={memoizedData.instagram} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Instagram className="w-5 h-5" />
-                <span>Instagram</span>
-              </a>
+              {socialLinks.length > 0 ? (
+                socialLinks.map((link) => {
+                  // Find and display email
+                  if (link.icon_type === "email") {
+                    return (
+                      <a 
+                        key={link.id}
+                        href={formatEmailLink(link.url)} 
+                        className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                        title="Klik untuk kirim email"
+                      >
+                        <Mail className="w-5 h-5" />
+                        <span>{link.url.replace('mailto:', '')}</span>
+                      </a>
+                    );
+                  }
+                  // Find and display whatsapp
+                  if (link.icon_type === "whatsapp" && footerData?.phone) {
+                    return (
+                      <a
+                        key={link.id}
+                        href={memoizedData.whatsappLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                        title="Klik untuk chat WhatsApp"
+                      >
+                        <Phone className="w-5 h-5" />
+                        <span>{memoizedData.phone}</span>
+                      </a>
+                    );
+                  }
+                  // Find and display instagram
+                  if (link.icon_type === "instagram") {
+                    return (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                        title="Buka Instagram kami"
+                      >
+                        <Instagram className="w-5 h-5" />
+                        <span>{link.label}</span>
+                      </a>
+                    );
+                  }
+                  return null;
+                })
+              ) : (
+                <>
+                  <a 
+                    href={memoizedData.whatsappLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                    title="Klik untuk chat WhatsApp"
+                  >
+                    <Phone className="w-5 h-5" />
+                    <span>{memoizedData.phone}</span>
+                  </a>
+                  <a 
+                    href={getEmailLink()}
+                    className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                    title="Klik untuk kirim email"
+                  >
+                    <Mail className="w-5 h-5" />
+                    <span>{memoizedData.email}</span>
+                  </a>
+                  <a 
+                    href={memoizedData.instagram} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+                    title="Buka Instagram kami"
+                  >
+                    <Instagram className="w-5 h-5" />
+                    <span>Instagram</span>
+                  </a>
+                </>
+              )}
             </div>
           </div>
 
@@ -252,18 +471,32 @@ const FooterSection = () => {
           <div>
             <h4 className="font-bold text-lg mb-4">Link Cepat</h4>
             <div className="space-y-3">
-              <a href="#" className="block text-muted-foreground hover:text-primary transition-colors">
-                Tentang Program
-              </a>
-              <a href="#" className="block text-muted-foreground hover:text-primary transition-colors">
-                Kurikulum
-              </a>
-              <a href="#" className="block text-muted-foreground hover:text-primary transition-colors">
-                Sistem Komisi
-              </a>
-              <a href="#" className="block text-muted-foreground hover:text-primary transition-colors">
-                FAQ
-              </a>
+              {quickLinks.length > 0 ? (
+                quickLinks.map((link) => (
+                  <a 
+                    key={link.id}
+                    href={link.url} 
+                    className="block text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {link.label}
+                  </a>
+                ))
+              ) : (
+                <>
+                  <a href="#" className="block text-muted-foreground hover:text-primary transition-colors">
+                    Tentang Program
+                  </a>
+                  <a href="#" className="block text-muted-foreground hover:text-primary transition-colors">
+                    Kurikulum
+                  </a>
+                  <a href="#" className="block text-muted-foreground hover:text-primary transition-colors">
+                    Sistem Komisi
+                  </a>
+                  <a href="#" className="block text-muted-foreground hover:text-primary transition-colors">
+                    FAQ
+                  </a>
+                </>
+              )}
             </div>
           </div>
         </div>
