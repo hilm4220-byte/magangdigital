@@ -234,14 +234,28 @@ const FooterSection = () => {
     return "62" + cleanedPhone;
   };
 
-  // Format email URL for mailto
-  const formatEmailLink = (email: string) => {
+  // Format email URL for mailto with subject and body
+  const formatEmailLink = (email: string, subject?: string, body?: string) => {
     if (!email) return "";
+    
     // Check if already has mailto:
-    if (email.startsWith("mailto:")) {
-      return email;
+    let mailtoUrl = email.startsWith("mailto:") ? email : `mailto:${email}`;
+    
+    // Add subject and body parameters
+    const params = new URLSearchParams();
+    if (subject) {
+      params.append("subject", subject);
     }
-    return `mailto:${email}`;
+    if (body) {
+      params.append("body", body);
+    }
+    
+    const queryString = params.toString();
+    if (queryString) {
+      mailtoUrl += "?" + queryString;
+    }
+    
+    return mailtoUrl;
   };
 
   // Handle email click - copy to clipboard for desktop users
@@ -264,13 +278,16 @@ const FooterSection = () => {
     }
   };
 
-  // Get email from social links or footer data
+  // Get email from social links or footer data with default subject and body
   const getEmailLink = () => {
     const emailLink = socialLinks.find((link) => link.icon_type === "email");
+    const subject = "Pertanyaan tentang Program DigiMagang";
+    const body = "Halo, saya tertarik dengan program DigiMagang. Bisa informasi lebih lanjut?";
+    
     if (emailLink) {
-      return formatEmailLink(emailLink.url);
+      return formatEmailLink(emailLink.url, subject, body);
     }
-    return formatEmailLink(memoizedData.email);
+    return formatEmailLink(memoizedData.email, subject, body);
   };
 
   // Memoize default values and formatted data for performance
@@ -338,15 +355,17 @@ const FooterSection = () => {
             <div className="flex gap-4">
               {socialLinks.length > 0 ? (
                 socialLinks.map((link) => {
-                  // Handle email link - open mailto
+                  // Handle email link - open mailto with subject and body
                   if (link.icon_type === "email") {
+                    const subject = "Pertanyaan tentang Program DigiMagang";
+                    const body = "Halo, saya tertarik dengan program DigiMagang. Bisa informasi lebih lanjut?";
                     return (
                       <a
                         key={link.id}
-                        href={formatEmailLink(link.url)}
+                        href={formatEmailLink(link.url, subject, body)}
                         className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
                         aria-label={link.label}
-                        title={link.label}
+                        title="Kirim email"
                       >
                         {getIconComponent(link.icon_type)}
                       </a>
@@ -405,12 +424,14 @@ const FooterSection = () => {
             <div className="space-y-3">
               {socialLinks.length > 0 ? (
                 socialLinks.map((link) => {
-                  // Find and display email - open mailto
+                  // Find and display email - open mailto with subject and body
                   if (link.icon_type === "email") {
+                    const subject = "Pertanyaan tentang Program DigiMagang";
+                    const body = "Halo, saya tertarik dengan program DigiMagang. Bisa informasi lebih lanjut?";
                     return (
                       <a
                         key={link.id}
-                        href={formatEmailLink(link.url)}
+                        href={formatEmailLink(link.url, subject, body)}
                         className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
                         title="Klik untuk kirim email"
                       >
